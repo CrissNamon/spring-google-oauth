@@ -1,0 +1,17 @@
+<!DOCTYPE HTML>
+<html xmlns:th="http://www.thymeleaf.org">
+    <head>
+        <title>Google OAuth sign in</title>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    </head>
+    <body>
+        <div th:switch="${is_authorized}">
+            <div th:case="true">
+                <p th:text="${already_authorized}"></p>
+                <br>
+                <a href="/home" th:text="${home_button}"></a>
+            </div>
+            <a th:case="false" th:text="${sign_in_button_google}" href="/proceedSignInGoogle"></a>
+        </div>
+    </body>
+</html>

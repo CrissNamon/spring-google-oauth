@@ -1,0 +1,15 @@
+<!DOCTYPE HTML>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Google OAuth home page</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+</head>
+    <body>
+        <h2 th:text="${greeting}">..!..</h2>
+        <br>
+        <div th:switch="${is_authorized}">
+            <a th:case="false" href="/signin" th:text="${sign_in_button}"></a>
+            <a th:case="true" href="/signout" th:text="${sign_out_button}"></a>
+        </div>
+    </body>
+</html>
