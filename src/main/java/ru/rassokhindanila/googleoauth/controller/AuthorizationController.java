@@ -7,8 +7,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import ru.rassokhindanila.googleoauth.dto.GoogleTokenInfo;
-import ru.rassokhindanila.googleoauth.dto.GoogleUserInfo;
+import org.springframework.web.context.request.async.DeferredResult;
 import ru.rassokhindanila.googleoauth.service.Impl.GoogleWebClient;
 import ru.rassokhindanila.googleoauth.service.OAuthWebClient;
 import ru.rassokhindanila.googleoauth.util.StringUtils;
@@ -82,63 +81,69 @@ public class AuthorizationController {
      * Completes Google OAuth Authorization
      */
     @GetMapping("/completeOAuthGoogle")
-    public String completeOAuthGoogle(@RequestParam(name = "code", required = false) String code,
-                                 @RequestParam(name = "error", required = false) String error,
-                                 Model model)
+    public DeferredResult<String> completeOAuthGoogle(@RequestParam(name = "code", required = false) String code,
+                                              @RequestParam(name = "error", required = false) String error,
+                                              Model model)
     {
+        DeferredResult<String> response = new DeferredResult<>();
         //Received error param after authorization
         if(error != null)
         {
             //Preparing model to show error
             model.addAttribute("error", "An error has occurred: "+error);
-            return "error";
+            response.setResult("error");
         }
         //Didn't receive authorization code
         if(code == null)
         {
             //Showing error
             model.addAttribute("error", "Wrong request data");
-            return "error";
+            response.setResult("error");
         }
         GoogleWebClient googleWebClient = (GoogleWebClient)oAuthWebClient;
         if(googleWebClient != null)
         {
             //Exchanging authorization code to access token
-            GoogleTokenInfo responseGoogleTokenInfo = googleWebClient.getTokenInfo(code);
-            if(responseGoogleTokenInfo == null) {
-                //Error has occurred
-                model.addAttribute("error",
-                        "Can't exchange authorization code to access token");
-                return "error";
-            }
-            //Redirecting user to complete authorization
-            return "redirect:/completeSignInGoogle?access_token=" + responseGoogleTokenInfo.getAccessToken();
+            googleWebClient.getTokenInfo(code,
+                    googleTokenInfo -> {
+                        response.setResult("redirect:/completeSignInGoogle?access_token=" + googleTokenInfo.getAccessToken());
+                    },
+                    e -> {
+                        model.addAttribute("error",
+                                "Can't exchange authorization code to access token");
+                        response.setResult("error");
+                    }
+            );
         }else{
             model.addAttribute("error", "GoogleWebClient error");
-            return "error";
+            response.setResult("error");
         }
+        return response;
     }
 
     /**
      * @param token Token received after authorization code exchange
      */
     @GetMapping("/completeSignInGoogle")
-    public String completeSignInGoogle(@RequestParam("access_token") String token,
+    public DeferredResult<String> completeSignInGoogle(@RequestParam("access_token") String token,
                                        HttpSession httpSession, Model model)
     {
+        DeferredResult<String> response = new DeferredResult<>();
         GoogleWebClient googleWebClient = (GoogleWebClient)oAuthWebClient;
         if(googleWebClient != null) {
             //Retrieving user information from Google
-            GoogleUserInfo googleUserInfo = googleWebClient.getUserInfo(token);
-            //If info is null, so something went wrong. Showing error
-            if (googleUserInfo == null) {
-                model.addAttribute("error", "Failed retrieving user info");
-                return "error";
-            }
-            //Set user name to session
-            httpSession.setAttribute("username", googleUserInfo.getName());
+            googleWebClient.getUserInfo(token,
+                    googleUserInfo -> {
+                        httpSession.setAttribute("username", googleUserInfo.getName());
+                        response.setResult("redirect:/home");
+                    },
+                    e -> {
+                        model.addAttribute("error", "Failed retrieving user info");
+                        response.setResult("error");
+                    }
+            );
         }
-        return "redirect:/home";
+        return response;
     }
 
     /**

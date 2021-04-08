@@ -9,6 +9,7 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 import org.springframework.web.util.UriComponentsBuilder;
 import ru.rassokhindanila.googleoauth.dto.GoogleTokenInfo;
 import ru.rassokhindanila.googleoauth.dto.GoogleUserInfo;
+import ru.rassokhindanila.googleoauth.functional.ParamVoidFunctional;
 import ru.rassokhindanila.googleoauth.service.OAuthWebClient;
 
 
@@ -109,42 +110,53 @@ public class GoogleWebClient implements OAuthWebClient {
     /**
      * Retrieves user information from Google account
      * @param token Access token
-     * @return User information from Google account
+     * @param onSuccess Called if user information successfully retrieved
+     * @param onError Called if an error occurred
      */
-    public GoogleUserInfo getUserInfo(String token){
+    public void getUserInfo(String token,
+                            ParamVoidFunctional<GoogleUserInfo> onSuccess,
+                            ParamVoidFunctional<? super Exception> onError){
         WebClient webClient = WebClient.create(
                 getUserInfoUrl(token)
         );
         try {
-            return webClient
+            webClient
                     .get()
                     .retrieve()
                     .bodyToMono(GoogleUserInfo.class)
-                    .block();
+                    .subscribe(
+                            onSuccess::action
+                    );
         }catch(WebClientResponseException e){
             logger.error("Error while retrieving user information: "+e.getMessage());
             logger.error(e.getResponseBodyAsString());
-            return null;
+            onError.action(e);
         }
     }
 
     /**
      * Exchange authorization code to access token
      * @param code Authorization code
-     * @return Access token information
+     * @param onSuccess Called if token successfully retrieved
+     * @param onError Called if an error occurred
      */
-    public GoogleTokenInfo getTokenInfo(String code)
+    public void getTokenInfo(String code,
+                             ParamVoidFunctional<GoogleTokenInfo> onSuccess,
+                             ParamVoidFunctional<? super Exception> onError)
     {
         WebClient webClient = WebClient.create(getExchangeUrl(code));
         try {
-            return webClient
+            webClient
                     .post()
                     .retrieve()
-                    .bodyToMono(GoogleTokenInfo.class).block();
+                    .bodyToMono(GoogleTokenInfo.class)
+                    .subscribe(
+                            onSuccess::action
+                    );
         }catch(WebClientResponseException e){
             logger.error("Error while getting access token: "+e.getMessage());
             logger.error(e.getResponseBodyAsString());
-            return null;
+            onError.action(e);
         }
     }
 }
